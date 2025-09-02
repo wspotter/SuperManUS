@@ -8,3 +8,7 @@ scipy==1.11.4
 librosa==0.10.1
 webrtcvad==2.0.10
 pydub==0.25.1
+pyttsx3==2.90
+edge-tts==6.1.9
+fastapi==0.104.1
+uvicorn==0.24.0
