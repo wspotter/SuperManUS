@@ -1,0 +1,11 @@
+# Image service requirements
+diffusers==0.24.0
+transformers==4.35.2
+accelerate==0.25.0
+opencv-python==4.8.1.78
+pillow==10.1.0
+torchvision==0.16.1
+omegaconf==2.3.0
+einops==0.7.0
+invisible-watermark==0.2.0
+safetensors==0.4.1
