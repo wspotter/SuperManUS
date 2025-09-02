@@ -1,0 +1,7 @@
+prediction_module:
+  enable_prediction: true
+mcp_server:
+  host: localhost
+  port: 8000
+voice_pipeline:
+  latency_target_ms: 500
