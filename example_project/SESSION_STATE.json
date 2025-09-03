@@ -1,0 +1,93 @@
+{
+  "current_session_id": "EXAMPLE_001",
+  "last_updated": "2025-09-03T10:30:00Z",
+  "project_name": "TaskMaster Pro",
+  "current_phase": "development",
+  "current_milestone": "MVP_FEATURES",
+  "active_tasks": [
+    "T1.1: Implement user authentication with email/password",
+    "T1.2: Create user dashboard with basic profile info", 
+    "T1.3: Add task creation and management CRUD operations",
+    "T2.1: Design responsive UI components library",
+    "T2.2: Implement task filtering and search functionality",
+    "T3.1: Add real-time notifications for task updates",
+    "T3.2: Create data export functionality (JSON/CSV)",
+    "BUGFIX.1: Fix memory leak in task list rendering"
+  ],
+  "completed_tasks": [
+    "SETUP.1: Initialize project structure and dependencies",
+    "SETUP.2: Configure development environment",  
+    "SETUP.3: Set up database schema and migrations",
+    "T0.1: Create basic Express.js server with routing",
+    "T0.2: Implement database connection and ORM setup"
+  ],
+  "in_progress": {
+    "task": "Phase 1: Core Functionality",
+    "subtasks": [
+      "User management system",
+      "Basic task CRUD operations", 
+      "Authentication and authorization",
+      "Initial UI components"
+    ]
+  },
+  "blockers": [
+    "Waiting for UX team to finalize dashboard wireframes",
+    "Need approval for third-party authentication providers"
+  ],
+  "next_actions": [
+    "Complete user authentication implementation",
+    "Begin dashboard UI development",
+    "Set up automated testing pipeline",
+    "Prepare for first user testing round"
+  ],
+  "session_notes": "Example project demonstrating SuperManUS task enforcement in a real web application development scenario. Shows how to manage multiple developers working on different features simultaneously while maintaining task discipline.",
+  "key_decisions": [
+    "Using Node.js + Express for backend",
+    "React + TypeScript for frontend", 
+    "PostgreSQL for database",
+    "JWT for authentication",
+    "SuperManUS for development task enforcement"
+  ],
+  "environment": {
+    "platform": "Linux",
+    "working_directory": "/path/to/example_project",
+    "node_version": "18.x",
+    "database": "PostgreSQL 15"
+  },
+  "modules_status": {
+    "backend_api": "in_development_40_percent",
+    "frontend_ui": "planning_stage",
+    "database_schema": "complete_and_migrated",
+    "authentication": "in_development_60_percent", 
+    "task_management": "design_complete_implementation_pending",
+    "user_dashboard": "wireframes_complete_coding_not_started",
+    "real_time_features": "not_started",
+    "testing_suite": "basic_setup_complete",
+    "deployment_pipeline": "not_configured"
+  },
+  "team_assignments": {
+    "developer_a": ["T1.1", "T1.3", "BUGFIX.1"],
+    "developer_b": ["T1.2", "T2.1"],
+    "developer_c": ["T2.2", "T3.1"],
+    "developer_d": ["T3.2"]
+  },
+  "validation_requirements": {
+    "all_tasks": {
+      "code_review": "required",
+      "tests_passing": "required", 
+      "documentation": "required"
+    },
+    "high_risk_tasks": {
+      "security_review": "required",
+      "performance_testing": "required",
+      "human_approval": "required"
+    }
+  },
+  "achievements": [
+    "Project structure established with proper separation of concerns",
+    "Development environment configured for all team members",
+    "Database schema designed and implemented",
+    "Basic API server operational",
+    "SuperManUS task enforcement active across all development"
+  ]
+}
