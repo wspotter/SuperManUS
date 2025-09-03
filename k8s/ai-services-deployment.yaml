@@ -1,0 +1,352 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-pipeline
+  namespace: supermanus
+  labels:
+    app: voice-pipeline
+    component: ai-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: voice-pipeline
+  template:
+    metadata:
+      labels:
+        app: voice-pipeline
+        component: ai-service
+    spec:
+      nodeSelector:
+        gpu-type: "amdgpu"
+      containers:
+      - name: voice-pipeline
+        image: supermanus/voice-pipeline:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MCP_SERVER
+          value: "http://mcp-server:8000"
+        - name: WHISPER_MODEL
+          value: "base"
+        - name: TTS_ENGINE
+          value: "piper"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: GPU_ENABLED
+          value: "true"
+        - name: ROCM_PATH
+          value: "/opt/rocm"
+        volumeMounts:
+        - name: models
+          mountPath: /models
+        - name: dev-dri
+          mountPath: /dev/dri
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+            amd.com/gpu: 1
+          limits:
+            memory: "8Gi"
+            cpu: "2000m"
+            amd.com/gpu: 1
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: models-pvc
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-generator
+  namespace: supermanus
+  labels:
+    app: image-generator
+    component: ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-generator
+  template:
+    metadata:
+      labels:
+        app: image-generator
+        component: ai-service
+    spec:
+      nodeSelector:
+        gpu-type: "amdgpu"
+      containers:
+      - name: image-generator
+        image: supermanus/image-generator:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MCP_SERVER
+          value: "http://mcp-server:8000"
+        - name: MODEL_NAME
+          value: "stabilityai/stable-diffusion-xl-base-1.0"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: GPU_ENABLED
+          value: "true"
+        - name: ROCM_PATH
+          value: "/opt/rocm"
+        volumeMounts:
+        - name: models
+          mountPath: /models
+        - name: outputs
+          mountPath: /outputs
+        - name: dev-dri
+          mountPath: /dev/dri
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "1000m"
+            amd.com/gpu: 1
+          limits:
+            memory: "16Gi"
+            cpu: "2000m"
+            amd.com/gpu: 1
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: models-pvc
+      - name: outputs
+        persistentVolumeClaim:
+          claimName: outputs-pvc
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-generator
+  namespace: supermanus
+  labels:
+    app: code-generator
+    component: ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-generator
+  template:
+    metadata:
+      labels:
+        app: code-generator
+        component: ai-service
+    spec:
+      containers:
+      - name: code-generator
+        image: supermanus/code-generator:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MCP_SERVER
+          value: "http://mcp-server:8000"
+        - name: MODEL_NAME
+          value: "codellama/CodeLlama-7b-Python-hf"
+        - name: SANDBOX_ENABLED
+          value: "true"
+        volumeMounts:
+        - name: models
+          mountPath: /models
+        - name: outputs
+          mountPath: /outputs
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: models-pvc
+      - name: outputs
+        persistentVolumeClaim:
+          claimName: outputs-pvc
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: supermanus
+  labels:
+    app: search-service
+    component: ai-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+        component: ai-service
+    spec:
+      containers:
+      - name: search-service
+        image: supermanus/search-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MCP_SERVER
+          value: "http://mcp-server:8000"
+        - name: REDIS_HOST
+          value: "redis"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Services for AI components
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-pipeline
+  namespace: supermanus
+spec:
+  selector:
+    app: voice-pipeline
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: image-generator
+  namespace: supermanus
+spec:
+  selector:
+    app: image-generator
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: code-generator
+  namespace: supermanus
+spec:
+  selector:
+    app: code-generator
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: supermanus
+spec:
+  selector:
+    app: search-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+
+---
+# Persistent Volume Claims
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: models-pvc
+  namespace: supermanus
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: outputs-pvc
+  namespace: supermanus
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi

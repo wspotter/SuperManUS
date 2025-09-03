@@ -1,0 +1,217 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: supermanus
+  labels:
+    app: celery-worker
+    component: task-queue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: celery-worker
+  template:
+    metadata:
+      labels:
+        app: celery-worker
+        component: task-queue
+    spec:
+      containers:
+      - name: celery-worker
+        image: supermanus/celery:latest
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: POSTGRES_HOST
+          value: "postgres"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: MCP_SERVER_URL
+          value: "http://mcp-server:8000"
+        - name: VOICE_SERVICE_URL
+          value: "http://voice-pipeline:8000"
+        - name: IMAGE_SERVICE_URL
+          value: "http://image-generator:8000"
+        - name: CODE_SERVICE_URL
+          value: "http://code-generator:8000"
+        - name: SEARCH_SERVICE_URL
+          value: "http://search-service:8000"
+        - name: CELERY_CONCURRENCY
+          value: "4"
+        command:
+        - celery
+        - -A
+        - utils.celery_app
+        - worker
+        - --loglevel=info
+        - --concurrency=4
+        - --queues=default,voice,image,code,search,orchestrator
+        volumeMounts:
+        - name: logs
+          mountPath: /logs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - celery
+            - -A
+            - utils.celery_app
+            - inspect
+            - ping
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - celery
+            - -A
+            - utils.celery_app
+            - inspect
+            - active
+          initialDelaySeconds: 30
+          periodSeconds: 15
+      volumes:
+      - name: logs
+        emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  namespace: supermanus
+  labels:
+    app: celery-beat
+    component: task-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-beat
+  template:
+    metadata:
+      labels:
+        app: celery-beat
+        component: task-scheduler
+    spec:
+      containers:
+      - name: celery-beat
+        image: supermanus/celery:latest
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: POSTGRES_HOST
+          value: "postgres"
+        command:
+        - celery
+        - -A
+        - utils.celery_app
+        - beat
+        - --loglevel=info
+        - --pidfile=/tmp/celerybeat.pid
+        - --schedule=/tmp/celerybeat-schedule
+        volumeMounts:
+        - name: logs
+          mountPath: /logs
+        - name: celery-beat-data
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: celery-beat-data
+        emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-flower
+  namespace: supermanus
+  labels:
+    app: celery-flower
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-flower
+  template:
+    metadata:
+      labels:
+        app: celery-flower
+        component: monitoring
+    spec:
+      containers:
+      - name: celery-flower
+        image: supermanus/celery:latest
+        ports:
+        - containerPort: 5555
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        command:
+        - celery
+        - -A
+        - utils.celery_app
+        - flower
+        - --port=5555
+        - --broker=redis://redis:6379/0
+        - --basic_auth=superman:kryptonite
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5555
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5555
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: celery-flower
+  namespace: supermanus
+  labels:
+    app: celery-flower
+spec:
+  selector:
+    app: celery-flower
+  ports:
+  - port: 5555
+    targetPort: 5555
+    name: flower
+  type: ClusterIP

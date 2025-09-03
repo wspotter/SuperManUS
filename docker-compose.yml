@@ -181,6 +181,78 @@ services:
       - supermanus-network
     restart: unless-stopped
 
+  # Celery Worker for distributed task processing
+  celery-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.celery
+    container_name: supermanus-celery-worker
+    environment:
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+      - MCP_SERVER_URL=http://mcp-server:8000
+      - VOICE_SERVICE_URL=http://voice-pipeline:8000
+      - IMAGE_SERVICE_URL=http://image-generator:8000
+      - CODE_SERVICE_URL=http://code-generator:8000
+      - SEARCH_SERVICE_URL=http://search-service:8000
+    volumes:
+      - ./src:/app
+      - ./logs:/logs
+    depends_on:
+      - redis
+      - postgres
+      - mcp-server
+    networks:
+      - supermanus-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Celery Beat for scheduled tasks
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.celery
+    container_name: supermanus-celery-beat
+    environment:
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+    volumes:
+      - ./src:/app
+      - ./logs:/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - supermanus-network
+    restart: unless-stopped
+    command: celery -A utils.celery_app beat --loglevel=info
+
+  # Flower for Celery monitoring
+  celery-flower:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.celery
+    container_name: supermanus-celery-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./src:/app
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - supermanus-network
+    restart: unless-stopped
+    command: celery -A utils.celery_app flower --port=5555
+
   # PostgreSQL for persistent storage
   postgres:
     image: postgres:16-alpine

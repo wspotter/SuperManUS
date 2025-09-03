@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: supermanus
+  labels:
+    app: mcp-server
+    component: orchestrator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+        component: orchestrator
+    spec:
+      containers:
+      - name: mcp-server
+        image: supermanus/mcp-server:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8001
+          name: websocket
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: POSTGRES_HOST
+          value: "postgres"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: ENABLE_ANTICIPATION
+          value: "true"
+        - name: LOG_LEVEL
+          value: "INFO"
+        volumeMounts:
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+        - name: logs
+          mountPath: /logs
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: app-config
+        configMap:
+          name: mcp-server-config
+      - name: logs
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  namespace: supermanus
+  labels:
+    app: mcp-server
+spec:
+  selector:
+    app: mcp-server
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  - port: 8001
+    targetPort: 8001
+    name: websocket
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-server-config
+  namespace: supermanus
+data:
+  config.yaml: |
+    app:
+      name: "SuperManUS MCP Server"
+      version: "1.0.0"
+      debug: false
+    
+    server:
+      host: "0.0.0.0"
+      port: 8000
+      websocket_port: 8001
+    
+    services:
+      voice:
+        url: "http://voice-pipeline:8000"
+        timeout: 30
+      image:
+        url: "http://image-generator:8000"
+        timeout: 60
+      code:
+        url: "http://code-generator:8000"
+        timeout: 45
+      search:
+        url: "http://search-service:8000"
+        timeout: 15
+    
+    anticipation:
+      enabled: true
+      threshold: 0.75
+      max_predictions: 5
+    
+    task_queue:
+      enabled: true
+      broker_url: "redis://redis:6379/0"
+      result_backend: "redis://redis:6379/0"
