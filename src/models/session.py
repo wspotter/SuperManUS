@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import logging
-import aioredis
+import redis.asyncio as redis
 import asyncpg
 
 from config.settings import Settings
@@ -19,7 +19,7 @@ class SessionManager:
     def __init__(self):
         self.settings = Settings()
         self.logger = logging.getLogger(__name__)
-        self.redis_client: Optional[aioredis.Redis] = None
+        self.redis_client: Optional[redis.Redis] = None
         self.pg_conn: Optional[asyncpg.Connection] = None
         self.current_session: Dict[str, Any] = {}
         self.task_queue: List[Dict[str, Any]] = []
@@ -27,8 +27,10 @@ class SessionManager:
     async def load_session(self):
         """Load or create session"""
         try:
-            self.redis_client = await aioredis.create_redis_pool(
-                f'redis://{self.settings.redis_host}:{self.settings.redis_port}'
+            self.redis_client = redis.Redis(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                decode_responses=True
             )
             
             self.pg_conn = await asyncpg.connect(
@@ -115,8 +117,7 @@ class SessionManager:
             json.dump(self.current_session, f, indent=2)
         
         if self.redis_client:
-            self.redis_client.close()
-            await self.redis_client.wait_closed()
+            await self.redis_client.aclose()
         
         if self.pg_conn:
             await self.pg_conn.close()
